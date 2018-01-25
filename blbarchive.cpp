@@ -2,6 +2,58 @@
 
 namespace Blb {
 
+  BlbFile::BlbFile(const BlbFileBuffer* fileBuffer, uint32_t fileId, BlbFileEntry fileEntry) {
+    // TODO: handle image files
+    // TODO: handle video files
+
+    _fileId = fileId;
+    _fileBuffer = new BlbFileBuffer(fileBuffer);
+
+    // TODO: handle PKWARE compressed files
+    // TODO: handle DW compressed files
+  }
+
+  BlbFile::~BlbFile() {
+    delete _fileBuffer;
+  }
+
+  void BlbFile::extract() {
+    std::stringstream sstream;
+    sstream << std::hex << _fileId;
+
+    std::ofstream fileOut;
+    fileOut.open(sstream.str() + ".raw", std::ios::binary);
+    fileOut.write(_fileBuffer->data, _fileBuffer->size);
+  }
+
+  BlbFileBuffer::BlbFileBuffer(const char* bufferData, uint32_t bufferSize) {
+    data = (char*)malloc(bufferSize);
+    memcpy(data, bufferData, bufferSize);
+    size = bufferSize;
+
+    _ptrRead = data;
+    _ptrWrite = data;
+  }
+
+  BlbFileBuffer::BlbFileBuffer(const BlbFileBuffer* fileBuffer) {
+    data = (char*)malloc(fileBuffer->size);
+    memcpy(data, fileBuffer->data, fileBuffer->size);
+    size = fileBuffer->size;
+
+    _ptrRead = data;
+    _ptrWrite = data;
+  }
+
+  void BlbFileBuffer::read(char* out, uint32_t size) {
+    memcpy(out, _ptrRead, size);
+    _ptrRead += size;
+  }
+
+  void BlbFileBuffer::write(const char* in, uint32_t size) {
+    memcpy(_ptrWrite, in, size);
+    _ptrWrite += size;
+  }
+
   BlbArchive::BlbArchive(std::string filename) {
     _filename = filename;
     _fs.open(filename, std::ios::binary);
@@ -61,6 +113,39 @@ namespace Blb {
 
   BlbArchive::~BlbArchive() {
     _fs.close();
+  }
+
+void BlbArchive::extractFile(uint32_t fileId) {
+    BlbFileEntry fileEntry = _fileEntries[fileId];
+
+    char* bufferData = (char*)malloc(fileEntry.diskSize);
+    uint32_t bufferSize = fileEntry.diskSize;
+
+    _fs.seekg(fileEntry.offset, std::ios::beg);
+    _fs.read(bufferData, bufferSize);
+    _fs.seekg(0, std::ios::beg);
+
+    BlbFileBuffer* fileBuffer = new BlbFileBuffer(bufferData, bufferSize);
+
+    BlbFile file(fileBuffer, fileId, fileEntry);
+    file.extract();
+
+    free(fileBuffer);
+  }
+
+  void BlbArchive::extractAudio() {
+    for (uint i = 0; i < _header.fileCount; i++) {
+      BlbFileEntry entry = _fileEntries[_fileIds[i]];
+      if (entry.type == FILE_TYPE_SOUND || entry.type == FILE_TYPE_MUSIC) {
+	// TODO: handle PKWARE compressed audio
+	// TODO: handle DW compressed audio
+
+	if (entry.compr == COMPR_TYPE_NONE && entry.shiftVal == DW_SHIFT_DEFAULT) {
+	  uint32_t fileId = _fileIds[i];
+	  extractFile(fileId);
+	}
+      }
+    }
   }
 
   void BlbArchive::debug() {
