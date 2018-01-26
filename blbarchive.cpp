@@ -10,7 +10,22 @@ namespace Blb {
     _fileBuffer = new BlbFileBuffer(fileBuffer);
 
     // TODO: handle PKWARE compressed files
-    // TODO: handle DW compressed files
+
+    if (fileEntry.shiftVal != DW_SHIFT_DEFAULT) {
+      uint32_t fileSizeCompressed = _fileBuffer->size;
+      uint32_t fileSizeDecompressed = fileSizeCompressed * 2;
+
+      char* bufferTemp = (char*)malloc(fileSizeDecompressed);
+
+      int16_t currVal = 0;
+      for (uint32_t i = 0; i < fileSizeCompressed; i++) {
+	currVal += (int8_t)_fileBuffer->data[i];
+	((int16_t*)bufferTemp)[i] = currVal << (int8_t)fileEntry.shiftVal;
+      }
+
+      _fileBuffer->data = bufferTemp;
+      _fileBuffer->size = fileSizeDecompressed;
+    }
   }
 
   BlbFile::~BlbFile() {
@@ -138,9 +153,8 @@ void BlbArchive::extractFile(uint32_t fileId) {
       BlbFileEntry entry = _fileEntries[_fileIds[i]];
       if (entry.type == FILE_TYPE_SOUND || entry.type == FILE_TYPE_MUSIC) {
 	// TODO: handle PKWARE compressed audio
-	// TODO: handle DW compressed audio
 
-	if (entry.compr == COMPR_TYPE_NONE && entry.shiftVal == DW_SHIFT_DEFAULT) {
+	if (entry.compr == COMPR_TYPE_NONE) {
 	  uint32_t fileId = _fileIds[i];
 	  extractFile(fileId);
 	}
