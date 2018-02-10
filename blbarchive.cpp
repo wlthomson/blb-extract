@@ -1,15 +1,32 @@
 #include "blbarchive.h"
+#include "blast/blast.h"
 
 namespace Blb {
 
-  BlbFile::BlbFile(const BlbFileBuffer* fileBuffer, uint32_t fileId, BlbFileEntry fileEntry) {
+  static unsigned int _inf(void* how, unsigned char** buf) {
+    BlbFileBuffer* buffer = (BlbFileBuffer*)how;
+    *buf = (unsigned char*)buffer->data;
+    return buffer->size;
+  }
+
+  static int _outf(void* how, unsigned char* buf, unsigned int len) {
+    BlbFileBuffer* buffer = (BlbFileBuffer*)how;
+    for (uint i = 0; i < len; i++) {
+      buffer->write((char*)&buf[i], 1);
+    }
+    return 0;
+  }
+
+  BlbFile::BlbFile(BlbFileBuffer* fileBuffer, uint32_t fileId, BlbFileEntry fileEntry) {
     // TODO: handle image files
     // TODO: handle video files
 
     _fileId = fileId;
-    _fileBuffer = new BlbFileBuffer(fileBuffer);
+    _fileBuffer = new BlbFileBuffer(fileBuffer->data, fileEntry.outSize);
 
-    // TODO: handle PKWARE compressed files
+    if (fileEntry.compr == COMPR_TYPE_PKWARE) {
+	blast(_inf, fileBuffer, _outf, _fileBuffer, NULL, NULL);
+    }
 
     if (fileEntry.shiftVal != DW_SHIFT_DEFAULT) {
       uint32_t fileSizeCompressed = _fileBuffer->size;
@@ -137,7 +154,7 @@ void BlbArchive::extractFile(uint32_t fileId) {
     uint32_t bufferSize = fileEntry.diskSize;
 
     _fs.seekg(fileEntry.offset, std::ios::beg);
-    _fs.read(bufferData, bufferSize);
+    _fs.read(bufferData, fileEntry.diskSize);
     _fs.seekg(0, std::ios::beg);
 
     BlbFileBuffer* fileBuffer = new BlbFileBuffer(bufferData, bufferSize);
@@ -152,9 +169,7 @@ void BlbArchive::extractFile(uint32_t fileId) {
     for (uint i = 0; i < _header.fileCount; i++) {
       BlbFileEntry entry = _fileEntries[_fileIds[i]];
       if (entry.type == FILE_TYPE_SOUND || entry.type == FILE_TYPE_MUSIC) {
-	// TODO: handle PKWARE compressed audio
-
-	if (entry.compr == COMPR_TYPE_NONE) {
+	if (entry.compr == COMPR_TYPE_PKWARE || entry.compr == COMPR_TYPE_NONE) {
 	  uint32_t fileId = _fileIds[i];
 	  extractFile(fileId);
 	}

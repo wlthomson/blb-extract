@@ -15,6 +15,7 @@ namespace Blb {
   static const uint8_t FILE_TYPE_MUSIC = 0x08;
 
   static const uint8_t COMPR_TYPE_NONE = 0x01;
+  static const uint8_t COMPR_TYPE_PKWARE = 0x03;
 
   static const uint8_t DW_SHIFT_DEFAULT = 0xFF;
 
@@ -52,7 +53,7 @@ namespace Blb {
 
   class BlbFile {
   public:
-    BlbFile(const BlbFileBuffer* fileBuffer, uint32_t fileId, BlbFileEntry fileEntry);
+    BlbFile(BlbFileBuffer* fileBuffer, uint32_t fileId, BlbFileEntry fileEntry);
     ~BlbFile();
     void extract();
   private:
