@@ -158,11 +158,12 @@ void BlbArchive::extractFile(uint32_t fileId) {
     _fs.seekg(0, std::ios::beg);
 
     BlbFileBuffer* fileBuffer = new BlbFileBuffer(bufferData, bufferSize);
+    free(bufferData);
 
     BlbFile file(fileBuffer, fileId, fileEntry);
-    file.extract();
-
     free(fileBuffer);
+
+    file.extract();
   }
 
   void BlbArchive::extractAudio() {
