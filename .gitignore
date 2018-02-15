@@ -2,3 +2,6 @@
 *.out
 *.blb
 *.raw
+
+bin/
+obj/
